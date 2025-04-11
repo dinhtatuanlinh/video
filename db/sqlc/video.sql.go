@@ -39,3 +39,41 @@ func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Video
 	)
 	return i, err
 }
+
+const listVideos = `-- name: ListVideos :many
+SELECT video_id, video_category_name, name, url, created_at
+FROM videos
+ORDER BY video_category_name LIMIT $1
+OFFSET $2
+`
+
+type ListVideosParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) ListVideos(ctx context.Context, arg ListVideosParams) ([]Video, error) {
+	rows, err := q.db.Query(ctx, listVideos, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Video
+	for rows.Next() {
+		var i Video
+		if err := rows.Scan(
+			&i.VideoID,
+			&i.VideoCategoryName,
+			&i.Name,
+			&i.Url,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

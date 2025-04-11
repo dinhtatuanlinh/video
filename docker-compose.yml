@@ -93,7 +93,8 @@ services:
       - backend
     volumes:
       - ./db/migration:/app/db/migration:ro
-      - /mnt/usb/setup/Video:/videos
+      - /Users/linhdinhtatuan/Downloads/videos:/videos
+#      - /mnt/usb/setup/Video:/videos
     logging:
       driver: "json-file"
       options:

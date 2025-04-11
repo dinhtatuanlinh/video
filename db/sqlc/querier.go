@@ -12,6 +12,7 @@ type Querier interface {
 	CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error)
 	CreateVideoCategory(ctx context.Context, arg CreateVideoCategoryParams) (VideoCategory, error)
 	GetCategory(ctx context.Context, videoCategoryName string) (VideoCategory, error)
+	ListVideos(ctx context.Context, arg ListVideosParams) ([]Video, error)
 }
 
 var _ Querier = (*Queries)(nil)

@@ -41,6 +41,8 @@ func (server *Server) setupRouter() {
 	router.POST("/video/download", server.DownloadVideoHandler)
 	router.POST("/video/create", server.CreateVideoHandler)
 	router.POST("/video/category", server.CreateVideoCategoryHandler)
+	router.GET("/videos", server.GetVideosHandler)
+
 	router.Static("/downloads", "/videos")
 
 	//router.POST("/admin", server.CreateAdminHandler)
