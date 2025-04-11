@@ -36,7 +36,7 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 	if os.IsNotExist(err) {
 		os.MkdirAll(outputDir, 0755)
 	}
-
+	log.Info().Str("outputDir", outputDir).Msg("Output directory")
 	for _, url := range req.Urls {
 		fileUrl := "/downloads/"
 		folder := outputDir + "/"

@@ -31,6 +31,7 @@ func (u *UseCaseVideo) CreateVideo(ctx context.Context, req *CreateVideoModel) e
 		return internalError.NewAppError("Failed to DownloadVideo", http.StatusBadRequest, codes.Internal, err)
 	}
 	outputDir := u.config.VideoPath
+	log.Info().Str("outputDir", outputDir).Msg("Output directory")
 	for _, video := range req.Videos {
 		_, err := os.Stat(video.InputPath)
 		if os.IsNotExist(err) {
