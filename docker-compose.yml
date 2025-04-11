@@ -68,7 +68,7 @@ services:
   postgres:
     image: postgres:17
     restart: unless-stopped
-    container_name: postgres
+    container_name: postgres_video
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: secret

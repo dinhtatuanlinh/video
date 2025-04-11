@@ -1,7 +1,5 @@
 # Stage 1: Build the Go binary
 FROM golang:1.24.2-alpine3.20 AS builder
-# Install ffmpeg
-RUN apk update && apk add --no-cache ffmpeg
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -28,5 +26,11 @@ WORKDIR /app
 # Copy the binary from the builder stage
 COPY --from=builder /app /app
 COPY dev.env .
+# Copy the entrypoint script
+COPY entrypoint.sh .
+# Make the entrypoint script executable
+RUN chmod +x entrypoint.sh
 # Command to run the app
 CMD ["./app"]
+# Set the entrypoint
+ENTRYPOINT ["./entrypoint.sh"]
