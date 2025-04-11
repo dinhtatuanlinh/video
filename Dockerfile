@@ -1,7 +1,7 @@
 # Stage 1: Build the Go binary
-FROM golang:1.23.4 AS builder
+FROM golang:1.24.2-alpine3.20 AS builder
 # Install ffmpeg
-RUN apk add --no-cache ffmpeg
+RUN apk update && apk add --no-cache ffmpeg
 # Set the working directory inside the container
 WORKDIR /app
 
