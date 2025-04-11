@@ -32,6 +32,11 @@ func (u *UseCaseVideo) CreateVideo(ctx context.Context, req *CreateVideoModel) e
 	}
 	outputDir := u.config.VideoPath
 	for _, video := range req.Videos {
+		_, err := os.Stat(video.InputPath)
+		if os.IsNotExist(err) {
+			log.Error().Str("file", video.InputPath).Err(err).Msg("file not exit")
+			return internalError.NewAppError("file not exit", http.StatusBadRequest, codes.Internal, err)
+		}
 		fileUrl := "/downloads/"
 		folder := outputDir + "/"
 		for {
@@ -49,7 +54,7 @@ func (u *UseCaseVideo) CreateVideo(ctx context.Context, req *CreateVideoModel) e
 			}
 		}
 
-		_, err := os.Stat(folder)
+		_, err = os.Stat(folder)
 		if os.IsNotExist(err) {
 			os.MkdirAll(folder, 0755)
 		}

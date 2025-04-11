@@ -1,7 +1,7 @@
 # Stage 1: Build the Go binary
 FROM golang:1.23.4 AS builder
 # Install ffmpeg
-RUN apt update && apt install -y ffmpeg
+RUN apk add --no-cache ffmpeg
 # Set the working directory inside the container
 WORKDIR /app
 
