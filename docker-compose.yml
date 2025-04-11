@@ -1,0 +1,116 @@
+services:
+#  elasticsearch:
+#    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.10
+#    platform: linux/amd64     # <--- 👈 This forces the correct architecture
+#    restart: unless-stopped
+#    container_name: elasticsearch
+#    environment:
+#      - discovery.type=single-node
+#      - xpack.security.enabled=false
+#      - bootstrap.memory_lock=true
+#      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+#    ports:
+#      - "9200:9200"
+#    volumes:
+#      - esdata:/usr/share/elasticsearch/data
+#    networks:
+#      - backend
+
+#  kibana:
+#    image: docker.elastic.co/kibana/kibana:7.17.10
+#    platform: linux/amd64     # <--- 👈 Force x86
+#    restart: unless-stopped
+#    container_name: kibana
+#    environment:
+#      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+#    ports:
+#      - "5601:5601"
+#    depends_on:
+#      - elasticsearch
+#    networks:
+#      - backend
+
+#  logstash:
+#    image: docker.elastic.co/logstash/logstash:7.17.10
+#    platform: linux/amd64     # <--- 👈 Force x86
+#    restart: unless-stopped
+#    container_name: logstash
+#    volumes:
+#      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+#      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+#      - /var/run/docker.sock:/var/run/docker.sock:ro
+#    depends_on:
+#      - elasticsearch
+#    networks:
+#      - backend
+#    ports:
+#      - "5044:5044"
+
+#  logstreamer:
+#    build:
+#      context: .
+#      dockerfile: logstreamer.Dockerfile
+#    container_name: logstreamer
+#    depends_on:
+#      - logstash
+#      - app
+#    command: /bin/sh -c "/scripts/docker-logs-streamer.sh | nc logstash 5044"
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock
+#      - ./docker-logs-streamer.sh:/scripts/docker-logs-streamer.sh:ro
+#    networks:
+#      - backend
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    container_name: postgres
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: video
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  app:
+    build: .
+    container_name: video
+    ports:
+      - "7070:7070"
+    env_file:
+      - dev.env
+    depends_on:
+      - postgres
+    networks:
+      - backend
+    volumes:
+      - ./db/migration:/app/db/migration:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+#  redis:
+#    image: redis:alpine
+#    restart: unless-stopped
+#    container_name: redis
+#    ports:
+#      - "6379:6379"
+#    networks:
+#      - backend
+
+volumes:
+  esdata:
+  postgres_data:
+
+networks:
+  backend:
