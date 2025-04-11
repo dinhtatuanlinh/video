@@ -37,6 +37,7 @@ func (server *Server) setupRouter() {
 	}))
 	router.Use(middleware.HttpLogger())
 	//router.GET("/video/:name", server.)
+	router.GET("/health_check", server.HealthCheckHandler)
 	router.POST("/video/download", server.DownloadVideoHandler)
 	router.POST("/video/create", server.CreateVideoHandler)
 	router.POST("/video/category", server.CreateVideoCategoryHandler)
