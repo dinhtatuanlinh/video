@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 type CreateVideoModel struct {
@@ -34,11 +35,11 @@ func (u *UseCaseVideo) CreateVideo(ctx context.Context, req *CreateVideoModel) e
 	outputDir := u.config.VideoPath
 	log.Info().Str("outputDir", outputDir).Msg("Output directory")
 	for _, video := range req.Videos {
-
-		_, err := os.Stat(video.InputPath)
-		log.Info().Str("video", video.InputPath).Msg("Input path")
+		inputPath := strings.ReplaceAll(video.InputPath, "", "\\ ")
+		_, err := os.Stat(inputPath)
+		log.Info().Str("video", inputPath).Msg("Input path")
 		if os.IsNotExist(err) {
-			log.Error().Str("file", video.InputPath).Err(err).Msg("file not exit")
+			log.Error().Str("file", inputPath).Err(err).Msg("file not exit")
 			return internalError.NewAppError("file not exit", http.StatusBadRequest, codes.Internal, err)
 		}
 		fileUrl := "/downloads/"
@@ -65,7 +66,7 @@ func (u *UseCaseVideo) CreateVideo(ctx context.Context, req *CreateVideoModel) e
 		outputPath := filepath.Join(folder, video.Name+".m3u8")
 		fileName := video.Name + ".m3u8"
 		cmd := exec.Command("ffmpeg",
-			"-i", video.InputPath, // input file
+			"-i", inputPath, // input file
 			"-c:v", "libx264", // video codec
 			"-c:a", "aac", // audio codec
 			"-f", "hls", // output format
