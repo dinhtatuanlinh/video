@@ -11,10 +11,16 @@ import (
 	"google.golang.org/grpc/codes"
 	"io"
 	"net/http"
-	neturl "net/url"
 	"os"
 	"path"
 	"strings"
+	"time"
+)
+
+const (
+	m3u8Type1 = "type1"
+	m3u8Type2 = "type2"
+	m3u8Type3 = "type3"
 )
 
 type DownloadVideoModel struct {
@@ -22,10 +28,12 @@ type DownloadVideoModel struct {
 }
 type UrlModel struct {
 	CategoryName string
+	Name         string
 	Url          string
 }
 
 func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoModel) error {
+	log.Info().Msg("DownloadVideo")
 	if len(req.Urls) < 1 {
 		err := errors.New("no url provided")
 		log.Error().Err(err).Msg("Failed to create operator")
@@ -38,57 +46,70 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 	}
 	log.Info().Str("outputDir", outputDir).Msg("Output directory")
 	for _, url := range req.Urls {
-		fileUrl := "/downloads/"
-		folder := outputDir + "/"
+		var fileUrl string
+		var folder string
+		//fileUrl := "/downloads/"
+		//folder := outputDir + "/"
+		categoryName := url.CategoryName
 		for {
-			category, err := u.store.GetCategory(ctx, url.CategoryName)
+			category, err := u.store.GetCategory(ctx, categoryName)
 			if err != nil {
 				if errors.Is(err, db.ErrRecordNotFound) {
 					return internalError.NewAppError("operator_id not found", http.StatusBadRequest, codes.NotFound, err)
 				}
 				return internalError.NewAppError("internal error", http.StatusInternalServerError, codes.Internal, err)
 			}
-			fileUrl = fileUrl + category.VideoCategoryName + "/"
-			folder = folder + category.VideoCategoryName + "/"
+			categoryName = category.CategoryParentName
+			fileUrl = category.VideoCategoryName + "/" + fileUrl
+			folder = category.VideoCategoryName + "/" + folder
 			if category.CategoryParentName == "" {
 				break
 			}
 		}
-
+		folder = outputDir + folder
 		_, err := os.Stat(folder)
 		if os.IsNotExist(err) {
 			os.MkdirAll(folder, 0755)
 		}
+		fileUrl = "/downloads/" + fileUrl
+
+		fmt.Println(">>>>>>>>>>>", fileUrl, folder)
 
 		// Parse the URL
-		urlObj, err := neturl.Parse(url.Url)
-		if err != nil {
-			return err
-		}
+		//urlObj, err := neturl.Parse(url.Url)
+		//if err != nil {
+		//	return err
+		//}
 
 		// Get the base (last element) of the path
-		filename := path.Base(urlObj.Path)
+		//filename := path.Base(urlObj.Path)
 		// Step 1: Select highest bandwidth variant
-		variantURL, err := getVariantPlaylist(url.Url)
+		variantURL, m3u8Type, err := getVariantPlaylist(url.Url)
 		if err != nil {
 			return err
 		}
-		log.Error().Err(err).Msgf("Selected highest bandwidth variant:", variantURL)
+		log.Error().Err(err).Msgf("Selected highest bandwidth variant: %s", variantURL)
 
 		// Step 2: Parse .m3u8 and download .ts files
-		lines, _ := parseVariantAndDownload(variantURL, folder)
+		lines := []string{}
+		if m3u8Type == m3u8Type2 {
+			lines, _ = parseVariantAndDownload(variantURL, folder)
+		} else if m3u8Type == m3u8Type1 {
+			lines = downloadFileType1(variantURL, folder)
+		}
 
 		// Step 3: Create local playlist file
-		playlistPath := path.Join(folder, filename)
+		name := strings.ReplaceAll(url.Name, " ", "_")
+		playlistPath := path.Join(folder, name+".m3u8")
 		err = os.WriteFile(playlistPath, []byte(strings.Join(lines, "\n")+"\n"), 0644)
 		if err != nil {
 			return err
 		}
-		name := strings.Split(filename, ".")[0]
+		//name := strings.Split(filename, ".")[0]
 		request := db.CreateVideoParams{
 			VideoCategoryName: url.CategoryName,
 			Name:              name,
-			Url:               fileUrl + filename,
+			Url:               fileUrl + name + ".m3u8",
 		}
 		_, err = u.store.CreateVideo(ctx, request)
 		if err != nil {
@@ -104,39 +125,58 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 	return nil
 }
 
-func getVariantPlaylist(masterURL string) (string, error) {
+func getVariantPlaylist(masterURL string) (string, string, error) {
 	resp, err := http.Get(masterURL)
 	if err != nil {
-		return "", err
+		panic(err)
 	}
 	defer resp.Body.Close()
 
 	scanner := bufio.NewScanner(resp.Body)
 	var maxBandwidth int
 	var selectedPlaylist string
-
+	var m3u8Type string
+	var url string
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "#EXT-X-STREAM-INF") {
-			// Extract BANDWIDTH
-			var bandwidth int
-			fmt.Sscanf(line, "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=%d", &bandwidth)
+			m3u8Type = m3u8Type2
+			break
+		} else if strings.HasSuffix(line, ".ts") {
+			m3u8Type = m3u8Type3
+			break
+		} else if strings.HasPrefix(line, "http://") || strings.HasPrefix(line, "https://") {
+			m3u8Type = m3u8Type1
+			break
+		}
+	}
+	if m3u8Type == m3u8Type2 {
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "#EXT-X-STREAM-INF") {
+				// Extract BANDWIDTH
+				var bandwidth int
+				fmt.Sscanf(line, "#EXT-X-STREAM-INF:PROGRAM-ID=1,BANDWIDTH=%d", &bandwidth)
 
-			// Read the next line for the playlist URL
-			if scanner.Scan() {
-				playlist := scanner.Text()
-				if bandwidth > maxBandwidth {
-					maxBandwidth = bandwidth
-					selectedPlaylist = playlist
+				// Read the next line for the playlist URL
+				if scanner.Scan() {
+					playlist := scanner.Text()
+					if bandwidth > maxBandwidth {
+						maxBandwidth = bandwidth
+						selectedPlaylist = playlist
+					}
 				}
 			}
 		}
+		if selectedPlaylist == "" {
+			return "", "", fmt.Errorf("no stream found in master playlist")
+		}
+		url = resolveURL(masterURL, selectedPlaylist)
+	} else if m3u8Type == m3u8Type1 {
+		url = masterURL
 	}
 
-	if selectedPlaylist == "" {
-		return "", fmt.Errorf("no stream found in master playlist")
-	}
-	return resolveURL(masterURL, selectedPlaylist), nil
+	return url, m3u8Type, nil
 }
 
 func resolveURL(baseURL, relative string) string {
@@ -163,6 +203,53 @@ func downloadFile(url, filepath string) error {
 	_, err = io.Copy(out, resp.Body)
 	return err
 }
+func downloadFileType1(baseURL, destDir string) []string {
+	// Get m3u8 content
+	resp, err := http.Get(baseURL)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// Prepare to read and store local lines
+	scanner := bufio.NewScanner(resp.Body)
+	var localLines []string
+	segmentIndex := 0
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.HasPrefix(line, "#") {
+			// Playlist info like #EXTINF
+			localLines = append(localLines, line)
+			continue
+		}
+
+		// This is a full URL to a .ts segment
+		segmentURL := line
+		now := time.Now()
+		base := strings.ReplaceAll(now.Format("20060102150405.000"), ".", "")
+		if !strings.HasSuffix(base, ".ts") {
+			base += ".ts"
+		}
+		filename := fmt.Sprintf("%03d_%s", segmentIndex, base)
+		filePath := path.Join(destDir, filename)
+
+		fmt.Printf("📥 Downloading segment %d → %s\n", segmentIndex, filename)
+		if err := downloadFile(segmentURL, filePath); err != nil {
+			fmt.Printf("⚠️ Failed to download %s: %v\n", segmentURL, err)
+			continue
+		}
+
+		localLines = append(localLines, filename)
+		segmentIndex++
+	}
+
+	//// Save local playlist file
+	//playlistPath := path.Join(destDir, "playlist.m3u8")
+	//return os.WriteFile(playlistPath, []byte(strings.Join(localLines, "\n")+"\n"), 0644)
+	return localLines
+}
 
 // Parse variant playlist and download segments concurrently
 func parseVariantAndDownload(m3u8URL, destDir string) ([]string, []string) {
@@ -183,7 +270,9 @@ func parseVariantAndDownload(m3u8URL, destDir string) ([]string, []string) {
 			tsURL := resolveURL(m3u8URL, line)
 
 			// create unique filename like 000_original.ts
-			originalName := path.Base(line)
+			now := time.Now()
+
+			originalName := strings.ReplaceAll(now.Format("20060102150405.000"), ".", "") + ".ts"
 			log.Info().Str("originalName", originalName).Msg("Downloading video")
 			uniqueFile := fmt.Sprintf("%03d_%s", segmentIndex, originalName)
 			savePath := path.Join(destDir, uniqueFile)
