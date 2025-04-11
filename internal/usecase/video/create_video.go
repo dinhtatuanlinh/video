@@ -25,6 +25,7 @@ type VideoModel struct {
 }
 
 func (u *UseCaseVideo) CreateVideo(ctx context.Context, req *CreateVideoModel) error {
+	log.Info().Msg("Create Video Request")
 	if len(req.Videos) < 1 {
 		err := errors.New("no url provided")
 		log.Error().Err(err).Msg("Failed to create operator")
