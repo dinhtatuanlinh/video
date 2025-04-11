@@ -17,7 +17,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o app .
 
 # Stage 2: Create a minimal container
-FROM alpine:latest
+FROM alpine:3.20
 
 # Install CA certificates for outbound HTTPS requests
 RUN apk --no-cache add ca-certificates
