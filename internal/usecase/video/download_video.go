@@ -72,7 +72,7 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 		if os.IsNotExist(err) {
 			os.MkdirAll(folder, 0755)
 		}
-		fileUrl = "/downloads/" + fileUrl + url.Code + "/"
+		fileUrl = "/videos/" + fileUrl + url.Code + "/"
 
 		variantURL, m3u8Type, err := getVariantPlaylist(url.Url)
 		if err != nil {
