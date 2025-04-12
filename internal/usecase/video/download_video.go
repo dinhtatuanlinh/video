@@ -48,8 +48,7 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 	for _, url := range req.Urls {
 		var fileUrl string
 		var folder string
-		//fileUrl := "/downloads/"
-		//folder := outputDir + "/"
+
 		categoryName := url.CategoryName
 		for {
 			category, err := u.store.GetCategory(ctx, categoryName)
@@ -75,15 +74,6 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 
 		fmt.Println(">>>>>>>>>>>", fileUrl, folder)
 
-		// Parse the URL
-		//urlObj, err := neturl.Parse(url.Url)
-		//if err != nil {
-		//	return err
-		//}
-
-		// Get the base (last element) of the path
-		//filename := path.Base(urlObj.Path)
-		// Step 1: Select highest bandwidth variant
 		variantURL, m3u8Type, err := getVariantPlaylist(url.Url)
 		if err != nil {
 			return err
@@ -203,7 +193,27 @@ func downloadFile(url, filepath string) error {
 	_, err = io.Copy(out, resp.Body)
 	return err
 }
+func getTotalSegmentType1(baseURL string) int {
+	resp, err := http.Get(baseURL)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// Prepare to read and store local lines
+	scanner := bufio.NewScanner(resp.Body)
+	count := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		count++
+	}
+	return count
+}
 func downloadFileType1(baseURL, destDir string) []string {
+	count := getTotalSegmentType1(baseURL)
 	// Get m3u8 content
 	resp, err := http.Get(baseURL)
 	if err != nil {
@@ -235,24 +245,39 @@ func downloadFileType1(baseURL, destDir string) []string {
 		filename := fmt.Sprintf("%03d_%s", segmentIndex, base)
 		filePath := path.Join(destDir, filename)
 
-		fmt.Printf("📥 Downloading segment %d → %s\n", segmentIndex, filename)
+		fmt.Printf("📥 Downloading segment %d/%d→ %s\n", segmentIndex, count, filename)
 		if err := downloadFile(segmentURL, filePath); err != nil {
 			fmt.Printf("⚠️ Failed to download %s: %v\n", segmentURL, err)
 			continue
 		}
-
+		count--
 		localLines = append(localLines, filename)
 		segmentIndex++
 	}
 
-	//// Save local playlist file
-	//playlistPath := path.Join(destDir, "playlist.m3u8")
-	//return os.WriteFile(playlistPath, []byte(strings.Join(localLines, "\n")+"\n"), 0644)
 	return localLines
+}
+func getTotalSegments(baseURL string) int {
+	resp, err := http.Get(baseURL)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	scanner := bufio.NewScanner(resp.Body)
+	count := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasSuffix(line, ".ts") {
+			count++
+		}
+	}
+	return count
 }
 
 // Parse variant playlist and download segments concurrently
 func parseVariantAndDownload(m3u8URL, destDir string) ([]string, []string) {
+	count := getTotalSegments(m3u8URL)
 	resp, err := http.Get(m3u8URL)
 	if err != nil {
 		panic(err)
@@ -281,11 +306,11 @@ func parseVariantAndDownload(m3u8URL, destDir string) ([]string, []string) {
 			lines = append(lines, uniqueFile)
 
 			// download directly without goroutines
-			fmt.Printf("Downloading segment %d → %s\n", segmentIndex, uniqueFile)
+			fmt.Printf("Downloading segment %d/%d → %s\n", segmentIndex, count, uniqueFile)
 			if err := downloadFile(tsURL, savePath); err != nil {
 				fmt.Printf("Failed to download %s: %v\n", tsURL, err)
 			}
-
+			count--
 			segmentIndex++
 		} else {
 			lines = append(lines, line)
