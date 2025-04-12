@@ -1,5 +1,7 @@
 package util
 
+import "regexp"
+
 func TernaryOperator[A any](statement bool, valueIfTrue A, valueIfFalse A) A {
 	if statement {
 		return valueIfTrue
@@ -80,4 +82,10 @@ func Filter[A any](f func(a A) bool, amap []A) []A {
 		}
 	}
 	return res
+}
+
+func RemoveSpecialCharactersButKeepSpace(input string) string {
+	// This regex keeps letters, digits, and spaces
+	re := regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
+	return re.ReplaceAllString(input, "")
 }

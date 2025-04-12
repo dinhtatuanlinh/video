@@ -15,6 +15,7 @@ type DownloadVideoRequest struct {
 }
 type UrlRequest struct {
 	CategoryName string `json:"category_name"`
+	Code         string `json:"code"`
 	Name         string `json:"name"`
 	Url          string `json:"url"`
 }
@@ -36,6 +37,7 @@ func (s *Server) DownloadVideoHandler(ctx *gin.Context) {
 	urls := util.Map(func(url UrlRequest) video.UrlModel {
 		return video.UrlModel{
 			CategoryName: url.CategoryName,
+			Code:         url.Code,
 			Name:         url.Name,
 			Url:          url.Url,
 		}
@@ -45,7 +47,7 @@ func (s *Server) DownloadVideoHandler(ctx *gin.Context) {
 	}
 	err := s.useCase.UseCaseVideo.DownloadVideo(ctx, request)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to DownloadVideoHandler")
+		log.Error().Err(err).Msg("Failed to DownloadVideo")
 		ctx.JSON(http.StatusInternalServerError, apierr.ErrorResponse(err))
 		return
 	}

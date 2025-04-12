@@ -22,7 +22,7 @@ func (u *UseCaseVideo) GetVideos(ctx context.Context, req *GetVideosModel) ([]db
 	videos, err := u.store.ListVideos(ctx, request)
 	if err != nil {
 		if errors.Is(err, db.ErrRecordNotFound) {
-			return []db.Video{}, internalError.NewAppError("operator_id not found", http.StatusBadRequest, codes.NotFound, err)
+			return []db.Video{}, internalError.NewAppError("there is no video", http.StatusBadRequest, codes.NotFound, err)
 		}
 		return []db.Video{}, internalError.NewAppError("internal error", http.StatusInternalServerError, codes.Internal, err)
 	}

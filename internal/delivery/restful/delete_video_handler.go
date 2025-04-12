@@ -4,25 +4,19 @@ import (
 	apierr "github.com/dinhtatuanlinh/video/internal/delivery/restful/error"
 	internalError "github.com/dinhtatuanlinh/video/internal/error"
 	"github.com/dinhtatuanlinh/video/internal/usecase/video"
-	"github.com/dinhtatuanlinh/video/util"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"net/http"
 )
 
-type CreateVideoRequest struct {
-	Videos []VideoRequest `json:"videos"`
-}
-type VideoRequest struct {
-	CategoryName string `json:"category_name"`
-	Name         string `json:"name"`
-	InputPath    string `json:"input_path"`
+type DeleteVideoRequest struct {
+	ID int64 `uri:"id" binding:"required"`
 }
 
-func (s *Server) CreateVideoHandler(ctx *gin.Context) {
+func (s *Server) DeleteVideoHandler(ctx *gin.Context) {
 	log.Info().Msg("CreateVideoHandler called")
-	var req CreateVideoRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
+	var req DeleteVideoRequest
+	if err := ctx.ShouldBindUri(&req); err != nil {
 		log.Error().Err(err).Msg("Failed to bind JSON body")
 		if appErr, ok := err.(*internalError.AppError); ok {
 			ctx.JSON(appErr.HTTPCode, gin.H{
@@ -33,19 +27,13 @@ func (s *Server) CreateVideoHandler(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, apierr.ErrorResponse(err))
 		return
 	}
-	videos := util.Map(func(v VideoRequest) video.VideoModel {
-		return video.VideoModel{
-			CategoryName: v.CategoryName,
-			Name:         v.Name,
-			InputPath:    v.InputPath,
-		}
-	}, req.Videos)
-	request := &video.CreateVideoModel{
-		Videos: videos,
+
+	request := &video.DeleteVideosModel{
+		ID: req.ID,
 	}
-	err := s.useCase.UseCaseVideo.CreateVideo(ctx, request)
+	err := s.useCase.UseCaseVideo.DeleteVideos(ctx, request)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to CreateVideo")
+		log.Error().Err(err).Msg("Failed to DeleteVideos")
 		ctx.JSON(http.StatusInternalServerError, apierr.ErrorResponse(err))
 		return
 	}

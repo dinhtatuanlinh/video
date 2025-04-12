@@ -48,7 +48,7 @@ func (u *UseCaseVideo) CreateVideo(ctx context.Context, req *CreateVideoModel) e
 			category, err := u.store.GetCategory(ctx, video.CategoryName)
 			if err != nil {
 				if errors.Is(err, db.ErrRecordNotFound) {
-					return internalError.NewAppError("operator_id not found", http.StatusBadRequest, codes.NotFound, err)
+					return internalError.NewAppError("category not found", http.StatusBadRequest, codes.NotFound, err)
 				}
 				return internalError.NewAppError("internal error", http.StatusInternalServerError, codes.Internal, err)
 			}

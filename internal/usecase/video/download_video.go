@@ -7,6 +7,7 @@ import (
 	"fmt"
 	db "github.com/dinhtatuanlinh/video/db/sqlc"
 	internalError "github.com/dinhtatuanlinh/video/internal/error"
+	"github.com/dinhtatuanlinh/video/util"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
 	"io"
@@ -28,6 +29,7 @@ type DownloadVideoModel struct {
 }
 type UrlModel struct {
 	CategoryName string
+	Code         string
 	Name         string
 	Url          string
 }
@@ -54,7 +56,7 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 			category, err := u.store.GetCategory(ctx, categoryName)
 			if err != nil {
 				if errors.Is(err, db.ErrRecordNotFound) {
-					return internalError.NewAppError("operator_id not found", http.StatusBadRequest, codes.NotFound, err)
+					return internalError.NewAppError("category not found", http.StatusBadRequest, codes.NotFound, err)
 				}
 				return internalError.NewAppError("internal error", http.StatusInternalServerError, codes.Internal, err)
 			}
@@ -65,14 +67,12 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 				break
 			}
 		}
-		folder = outputDir + folder
+		folder = outputDir + folder + url.Code + "/"
 		_, err := os.Stat(folder)
 		if os.IsNotExist(err) {
 			os.MkdirAll(folder, 0755)
 		}
-		fileUrl = "/downloads/" + fileUrl
-
-		fmt.Println(">>>>>>>>>>>", fileUrl, folder)
+		fileUrl = "/downloads/" + fileUrl + url.Code + "/"
 
 		variantURL, m3u8Type, err := getVariantPlaylist(url.Url)
 		if err != nil {
@@ -89,7 +89,8 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 		}
 
 		// Step 3: Create local playlist file
-		name := strings.ReplaceAll(url.Name, " ", "_")
+
+		name := strings.ReplaceAll(util.RemoveSpecialCharactersButKeepSpace(url.Name), " ", "_")
 		playlistPath := path.Join(folder, name+".m3u8")
 		err = os.WriteFile(playlistPath, []byte(strings.Join(lines, "\n")+"\n"), 0644)
 		if err != nil {
@@ -98,6 +99,7 @@ func (u *UseCaseVideo) DownloadVideo(ctx context.Context, req *DownloadVideoMode
 		//name := strings.Split(filename, ".")[0]
 		request := db.CreateVideoParams{
 			VideoCategoryName: url.CategoryName,
+			Code:              url.Code,
 			Name:              name,
 			Url:               fileUrl + name + ".m3u8",
 		}
@@ -298,7 +300,6 @@ func parseVariantAndDownload(m3u8URL, destDir string) ([]string, []string) {
 			now := time.Now()
 
 			originalName := strings.ReplaceAll(now.Format("20060102150405.000"), ".", "") + ".ts"
-			log.Info().Str("originalName", originalName).Msg("Downloading video")
 			uniqueFile := fmt.Sprintf("%03d_%s", segmentIndex, originalName)
 			savePath := path.Join(destDir, uniqueFile)
 

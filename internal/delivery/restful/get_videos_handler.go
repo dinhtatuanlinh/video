@@ -49,7 +49,7 @@ func (s *Server) GetVideosHandler(ctx *gin.Context) {
 	}
 	videos, err := s.useCase.UseCaseVideo.GetVideos(ctx, request)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to CreateVideoCategory")
+		log.Error().Err(err).Msg("Failed to GetVideos")
 		ctx.JSON(http.StatusInternalServerError, apierr.ErrorResponse(err))
 		return
 	}

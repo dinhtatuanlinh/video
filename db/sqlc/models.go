@@ -11,6 +11,7 @@ import (
 type Video struct {
 	VideoID           int64     `json:"video_id"`
 	VideoCategoryName string    `json:"video_category_name"`
+	Code              string    `json:"code"`
 	Name              string    `json:"name"`
 	Url               string    `json:"url"`
 	CreatedAt         time.Time `json:"created_at"`

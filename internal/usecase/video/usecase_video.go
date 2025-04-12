@@ -11,6 +11,7 @@ type VideoRepository interface {
 	CreateVideo(ctx context.Context, req *CreateVideoModel) error
 	CreateVideoCategory(ctx context.Context, req *CreateVideoCategoryModel) error
 	GetVideos(ctx context.Context, req *GetVideosModel) ([]db.Video, error)
+	DeleteVideos(ctx context.Context, req *DeleteVideosModel) error
 }
 type UseCaseVideo struct {
 	config config.Config

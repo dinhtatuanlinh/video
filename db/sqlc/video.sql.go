@@ -12,27 +12,64 @@ import (
 const createVideo = `-- name: CreateVideo :one
 INSERT INTO videos (
     video_category_name,
+                    code,
     name,
     url,
     created_at
 ) VALUES (
-             $1, $2, $3, DEFAULT
+             $1, $2, $3, $4, DEFAULT
          )
-    RETURNING video_id, video_category_name, name, url, created_at
+    RETURNING video_id, video_category_name, code, name, url, created_at
 `
 
 type CreateVideoParams struct {
 	VideoCategoryName string `json:"video_category_name"`
+	Code              string `json:"code"`
 	Name              string `json:"name"`
 	Url               string `json:"url"`
 }
 
 func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error) {
-	row := q.db.QueryRow(ctx, createVideo, arg.VideoCategoryName, arg.Name, arg.Url)
+	row := q.db.QueryRow(ctx, createVideo,
+		arg.VideoCategoryName,
+		arg.Code,
+		arg.Name,
+		arg.Url,
+	)
 	var i Video
 	err := row.Scan(
 		&i.VideoID,
 		&i.VideoCategoryName,
+		&i.Code,
+		&i.Name,
+		&i.Url,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const deleteVideoByID = `-- name: DeleteVideoByID :exec
+DELETE FROM videos
+WHERE video_id = $1
+`
+
+func (q *Queries) DeleteVideoByID(ctx context.Context, videoID int64) error {
+	_, err := q.db.Exec(ctx, deleteVideoByID, videoID)
+	return err
+}
+
+const getVideoByID = `-- name: GetVideoByID :one
+SELECT video_id, video_category_name, code, name, url, created_at FROM videos
+WHERE video_id = $1
+`
+
+func (q *Queries) GetVideoByID(ctx context.Context, videoID int64) (Video, error) {
+	row := q.db.QueryRow(ctx, getVideoByID, videoID)
+	var i Video
+	err := row.Scan(
+		&i.VideoID,
+		&i.VideoCategoryName,
+		&i.Code,
 		&i.Name,
 		&i.Url,
 		&i.CreatedAt,
@@ -41,7 +78,7 @@ func (q *Queries) CreateVideo(ctx context.Context, arg CreateVideoParams) (Video
 }
 
 const listVideos = `-- name: ListVideos :many
-SELECT video_id, video_category_name, name, url, created_at
+SELECT video_id, video_category_name, code, name, url, created_at
 FROM videos
 ORDER BY video_category_name LIMIT $1
 OFFSET $2
@@ -64,6 +101,7 @@ func (q *Queries) ListVideos(ctx context.Context, arg ListVideosParams) ([]Video
 		if err := rows.Scan(
 			&i.VideoID,
 			&i.VideoCategoryName,
+			&i.Code,
 			&i.Name,
 			&i.Url,
 			&i.CreatedAt,

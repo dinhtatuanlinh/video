@@ -11,7 +11,9 @@ import (
 type Querier interface {
 	CreateVideo(ctx context.Context, arg CreateVideoParams) (Video, error)
 	CreateVideoCategory(ctx context.Context, arg CreateVideoCategoryParams) (VideoCategory, error)
+	DeleteVideoByID(ctx context.Context, videoID int64) error
 	GetCategory(ctx context.Context, videoCategoryName string) (VideoCategory, error)
+	GetVideoByID(ctx context.Context, videoID int64) (Video, error)
 	ListVideos(ctx context.Context, arg ListVideosParams) ([]Video, error)
 }
 
