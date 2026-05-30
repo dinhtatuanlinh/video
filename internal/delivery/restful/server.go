@@ -1,6 +1,7 @@
 package restful
 
 import (
+	"github.com/dinhtatuanlinh/video/internal/constant"
 	"github.com/dinhtatuanlinh/video/internal/delivery/restful/middleware"
 	"github.com/dinhtatuanlinh/video/internal/usecase"
 	"github.com/gin-contrib/cors"
@@ -43,9 +44,10 @@ func (server *Server) setupRouter() {
 	router.POST("/video/category", server.CreateVideoCategoryHandler)
 	router.DELETE("/video/:id", server.DeleteVideoHandler)
 	router.GET("/videos", server.GetVideosHandler)
+	router.GET("/files", server.GetFilesHandler)
 
-	router.Static("/videos", "/videos")
-
+	//router.Static("/videos", "/videos")
+	router.Static("/videos", constant.Drive+`\setup\videos`)
 	//router.POST("/admin", server.CreateAdminHandler)
 
 	//router.GET("/operator/verify_email", server.VerifyEmailHandler)

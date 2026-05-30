@@ -1,0 +1,25 @@
+{
+    "videos": [
+        {
+            "video_id": 11,
+            "video_category_name": "Amin_Arana",
+            "name": "aaa",
+            "url": "/videos/jp/Amin_Arana/SSNI-628/aaa.m3u8",
+            "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+            "video_id": 15,
+            "video_category_name": "Amin_Arana",
+            "name": "bbb",
+            "url": "/videos/jp/Amin_Arana/SSNI-895/bbb.m3u8",
+            "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+            "video_id": 10,
+            "video_category_name": "Amin_Arana",
+            "name": "ccc",
+            "url": "/videos/jp/Amin_Arana/SSNI-602/ccc.m3u8",
+            "created_at": "0001-01-01T00:00:00Z"
+        }
+    ]
+}

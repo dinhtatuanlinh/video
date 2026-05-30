@@ -15,6 +15,7 @@ type CreateVideoRequest struct {
 }
 type VideoRequest struct {
 	CategoryName string `json:"category_name"`
+	Code         string `json:"code"`
 	Name         string `json:"name"`
 	InputPath    string `json:"input_path"`
 }
@@ -36,6 +37,7 @@ func (s *Server) CreateVideoHandler(ctx *gin.Context) {
 	videos := util.Map(func(v VideoRequest) video.VideoModel {
 		return video.VideoModel{
 			CategoryName: v.CategoryName,
+			Code:         v.Code,
 			Name:         v.Name,
 			InputPath:    v.InputPath,
 		}

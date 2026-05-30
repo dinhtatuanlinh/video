@@ -1,32 +1,204 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>HLS Video Player</title>
+  <meta charset="utf-8" />
+  <title>HLS Video Player — Custom Controls</title>
+  <style>
+    :root { --bg: #0f1115; --fg: #eaeef2; --muted:#9aa4af; --accent:#5b9cff; }
+    body { margin: 0; background: #0a0c10; font-family: system-ui, sans-serif; color: var(--fg); }
+    
+    .row { display:flex; gap:8px; padding:10px; background:#111; }
+    input[type="text"]{ flex:1; padding:10px 12px; border-radius:8px; border:1px solid #2a2f3a; background:#12151c; color:var(--fg); }
+    button { border:0; padding:8px 12px; border-radius:8px; background:#1a1f2b; color:var(--fg); cursor:pointer; }
+    button:hover { background:#202735; }
+
+    .player { position: relative; background:#000; height: 730px }
+    video { height: 730px; display: block; background:#000; }
+
+    /* Controls */
+    #seek {
+      height: 10px;
+    }
+    .controls {
+      position:absolute; left:0; right:0; bottom:0;
+      display:flex; flex-direction:column; gap:8px;
+      padding:10px;
+      background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.6) 60%, rgba(0,0,0,.9) 100%);
+    }
+    .bar { display:flex; align-items:center; gap:8px; }
+    .spacer { flex:1; }
+    .time { font-variant-numeric: tabular-nums; color:var(--muted); min-width:100px; text-align:right; }
+
+    input[type="range"] {
+      -webkit-appearance:none; appearance:none; height:4px; border-radius:4px; background:#2a2f3a; cursor:pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--accent); border:0;
+    }
+    /* ⬇️ Make the volume slider longer */
+    .vol { width:800px; }
+    /* Hide controls by default */
+.controls {
+  opacity: 0;
+  pointer-events: none; /* prevent blocking clicks when hidden */
+  transition: opacity 0.3s ease;
+}
+
+/* Show controls when hover over the player */
+.player:hover .controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+  </style>
 </head>
 <body>
-  <h1>My Video Website</h1>
-  <video id="video" width="1200" height="720" controls></video>
+  <div class="row">
+    <input id="link" type="text" placeholder="/videos/sample/playlist.m3u8">
+    <button id="loadBtn">Load</button>
+  </div>
+
+  <div class="player" id="player">
+    <video id="video" playsinline></video>
+    <div class="controls" id="controls">
+      <input id="seek" type="range" min="0" max="1000" value="0">
+      <div class="bar">
+        <button id="playPause">▶️</button>
+        <button id="back10">⏪ -10s</button>
+        <button id="fwd10">⏩ +10s</button>
+        <div class="spacer"></div>
+        <button id="mute">🔊</button>
+        <input id="volume" class="vol" type="range" min="0" max="1" step="0.01" value="1">
+        <div class="time" id="time">00:00 / 00:00</div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    const video = document.getElementById('video');
-    // const host = 'http://localhost:7070'
-    const host = 'http://192.168.1.10:7070'
-    const videoSrc = host + "/videos/jp/minami_sayuri/mifd-603/A_Beautiful_Girl_Like_A_Morning_Drama_Actress_In_Seishun_Water_Makes_Her_AV_Debut_She_Has_A_Cute_Voice_Like_A_Quiet_Little_Animal_And_Moans_Like_A_Dick_Orgasm.m3u8"; 
+    const video   = document.getElementById('video');
+    const link    = document.getElementById('link');
+    const loadBtn = document.getElementById('loadBtn');
+    const playBtn = document.getElementById('playPause');
+    const backBtn = document.getElementById('back10');
+    const fwdBtn  = document.getElementById('fwd10');
+    const muteBtn = document.getElementById('mute');
+    const vol     = document.getElementById('volume');
+    const seek    = document.getElementById('seek');
+    const timeEl  = document.getElementById('time');
 
-    if (Hls.isSupported()) {
-      const hls = new Hls();
-      hls.loadSource(videoSrc);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, function () {
-        video.play();
-      });
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      video.src = videoSrc;
-      video.addEventListener('loadedmetadata', function () {
-        video.play();
-      });
+    const host = 'http://localhost:7071';
+    let hls;
+
+    video.controls = false;
+
+    loadBtn.addEventListener('click', () => {
+      const raw = link.value.trim();
+      if (!raw) return;
+      const src = raw.startsWith('http') ? raw : host + raw;
+      load(src);
+      link.value = '';
+    });
+    link.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const raw = link.value.trim();
+    if (!raw) return;
+    const src = raw.startsWith('http') ? raw : host + raw;
+    load(src);
+    link.value = '';
+  }
+});
+
+    function load(src){
+      if (hls) { hls.destroy(); }
+      if (Hls.isSupported()) {
+        hls = new Hls();
+        hls.loadSource(src);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = src;
+        video.addEventListener('loadedmetadata', () => video.play(), { once:true });
+      }
     }
+
+    // Play / Pause
+    playBtn.addEventListener('click', () => video.paused ? video.play() : video.pause());
+    video.addEventListener('play', () => playBtn.textContent = '⏸️');
+    video.addEventListener('pause', () => playBtn.textContent = '▶️');
+
+    // Skip
+    backBtn.addEventListener('click', () => { video.currentTime = Math.max(0, video.currentTime - 10); });
+    fwdBtn.addEventListener('click', () => { video.currentTime = Math.min(video.duration, video.currentTime + 10); });
+
+    // Volume + Mute
+    muteBtn.addEventListener('click', () => {
+      video.muted = !video.muted;
+      updateVolumeUI();
+    });
+    vol.addEventListener('input', () => {
+      video.volume = Number(vol.value);
+      video.muted = video.volume === 0;
+      updateVolumeUI();
+    });
+
+    function updateVolumeUI() {
+      if (video.muted || video.volume === 0) {
+        muteBtn.textContent = '🔇';
+        vol.value = 0;
+      } else if (video.volume < 0.5) {
+        muteBtn.textContent = '🔉';
+      } else {
+        muteBtn.textContent = '🔊';
+      }
+    }
+
+    // Seek
+    function formatTime(s){
+      s = Math.floor(s); 
+      const m = Math.floor(s/60), sec = String(s%60).padStart(2,'0');
+      return `${m}:${sec}`;
+    }
+    video.addEventListener('timeupdate', () => {
+      if (video.duration) {
+        const ratio = video.currentTime / video.duration;
+        seek.value = ratio * 1000;
+        timeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+      }
+    });
+    seek.addEventListener('input', () => {
+      if (video.duration) video.currentTime = (seek.value/1000) * video.duration;
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      const active = document.activeElement;
+      const isTypingInTextInput = active && active.tagName === 'INPUT' && active.getAttribute('type') === 'text';
+      if (isTypingInTextInput) return;
+
+      // Space: toggle play/pause
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
+      }
+
+      // ArrowLeft: next +10s (as requested)
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        const next = Math.min(video.duration || Infinity, (video.currentTime || 0) + 10);
+        video.currentTime = next;
+      }
+
+      // ArrowRight: back -10s (as requested)
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        const prev = Math.max(0, (video.currentTime || 0) - 10);
+        video.currentTime = prev;
+      }
+    });
   </script>
 </body>
 </html>

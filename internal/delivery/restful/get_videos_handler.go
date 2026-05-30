@@ -13,8 +13,10 @@ import (
 )
 
 type GetVideoRequest struct {
-	Limit  int32 `form:"limit"`
-	Offset int32 `form:"offset"`
+	Limit    int32  `form:"limit"`
+	Offset   int32  `form:"offset"`
+	OrderBy  string `form:"order_by"`
+	OrderDir string `form:"order_dir"`
 }
 
 type GetVideoResponse struct {
@@ -23,6 +25,7 @@ type GetVideoResponse struct {
 type VideoResponse struct {
 	VideoID           int64     `json:"video_id"`
 	VideoCategoryName string    `json:"video_category_name"`
+	Code              string    `json:"code"`
 	Name              string    `json:"name"`
 	Url               string    `json:"url"`
 	CreatedAt         time.Time `json:"created_at"`
@@ -44,8 +47,10 @@ func (s *Server) GetVideosHandler(ctx *gin.Context) {
 	}
 
 	request := &video.GetVideosModel{
-		Limit:  req.Limit,
-		Offset: req.Offset,
+		Limit:    req.Limit,
+		Offset:   req.Offset,
+		OrderBy:  req.OrderBy,
+		OrderDir: req.OrderDir,
 	}
 	videos, err := s.useCase.UseCaseVideo.GetVideos(ctx, request)
 	if err != nil {
@@ -57,6 +62,7 @@ func (s *Server) GetVideosHandler(ctx *gin.Context) {
 		return VideoResponse{
 			VideoID:           video.VideoID,
 			VideoCategoryName: video.VideoCategoryName,
+			Code:              video.Code,
 			Name:              video.Name,
 			Url:               video.Url,
 		}

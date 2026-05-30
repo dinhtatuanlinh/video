@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	db "github.com/dinhtatuanlinh/video/db/sqlc"
+	"github.com/dinhtatuanlinh/video/internal/constant"
 	internalError "github.com/dinhtatuanlinh/video/internal/error"
+	"github.com/dinhtatuanlinh/video/util"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
 	"net/http"
@@ -13,6 +15,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type CreateVideoModel struct {
@@ -21,6 +24,7 @@ type CreateVideoModel struct {
 
 type VideoModel struct {
 	CategoryName string
+	Code         string
 	Name         string
 	InputPath    string
 }
@@ -32,47 +36,51 @@ func (u *UseCaseVideo) CreateVideo(ctx context.Context, req *CreateVideoModel) e
 		log.Error().Err(err).Msg("Failed to create operator")
 		return internalError.NewAppError("Failed to DownloadVideo", http.StatusBadRequest, codes.Internal, err)
 	}
-	outputDir := u.config.VideoPath
+	outputDir := constant.Drive + "\\setup\\Videos"
 	log.Info().Str("outputDir", outputDir).Msg("Output directory")
 	for _, video := range req.Videos {
-		inputPath := strings.ReplaceAll(video.InputPath, "", "\\ ")
-		_, err := os.Stat(inputPath)
-		log.Info().Str("video", inputPath).Msg("Input path")
-		if os.IsNotExist(err) {
-			log.Error().Str("file", inputPath).Err(err).Msg("file not exit")
-			return internalError.NewAppError("file not exit", http.StatusBadRequest, codes.Internal, err)
-		}
-		fileUrl := "/downloads/"
-		folder := outputDir + "/"
+		inputPath := video.InputPath
+
+		var fileUrl string
+		var folder string
+		categoryName := video.CategoryName
 		for {
-			category, err := u.store.GetCategory(ctx, video.CategoryName)
+			category, err := u.store.GetCategory(ctx, categoryName)
 			if err != nil {
 				if errors.Is(err, db.ErrRecordNotFound) {
 					return internalError.NewAppError("category not found", http.StatusBadRequest, codes.NotFound, err)
 				}
 				return internalError.NewAppError("internal error", http.StatusInternalServerError, codes.Internal, err)
 			}
-			fileUrl = fileUrl + category.VideoCategoryName + "/"
-			folder = folder + category.VideoCategoryName + "/"
+			categoryName = category.CategoryParentName
+			fileUrl = category.VideoCategoryName + "/" + fileUrl
+			folder = category.VideoCategoryName + "/" + folder
 			if category.CategoryParentName == "" {
 				break
 			}
 		}
-
-		_, err = os.Stat(folder)
+		folder = outputDir + "/" + folder + video.Code
+		_, err := os.Stat(folder)
 		if os.IsNotExist(err) {
 			os.MkdirAll(folder, 0755)
 		}
-		outputPath := filepath.Join(folder, video.Name+".m3u8")
-		fileName := video.Name + ".m3u8"
+		fileUrl = "/videos/" + fileUrl + video.Code + "/"
+
+		name := strings.ReplaceAll(util.RemoveSpecialCharactersButKeepSpace(video.Name), " ", "_")
+		outputPath := filepath.Join(folder, name+".m3u8")
+
+		fileName := name + ".m3u8"
+		now := time.Now()
 		cmd := exec.Command("ffmpeg",
+			"-fflags", "+discardcorrupt", // discard corrupt frames
+			"-err_detect", "ignore_err", // ignore decoding errors
 			"-i", inputPath, // input file
 			"-c:v", "libx264", // video codec
 			"-c:a", "aac", // audio codec
 			"-f", "hls", // output format
 			"-hls_time", "10", // segment length in seconds
 			"-hls_playlist_type", "vod",
-			"-hls_segment_filename", filepath.Join(folder, video.Name+"_"+"segment_%03d.ts"), // segment files
+			"-hls_segment_filename", filepath.Join(folder, now.Format("20060102150405.000")+"_"+"%03d.ts"),
 			outputPath,
 		)
 
@@ -86,6 +94,7 @@ func (u *UseCaseVideo) CreateVideo(ctx context.Context, req *CreateVideoModel) e
 
 		request := db.CreateVideoParams{
 			VideoCategoryName: video.CategoryName,
+			Code:              video.Code,
 			Name:              video.Name,
 			Url:               fileUrl + fileName,
 		}

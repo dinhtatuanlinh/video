@@ -80,17 +80,26 @@ func (q *Queries) GetVideoByID(ctx context.Context, videoID int64) (Video, error
 const listVideos = `-- name: ListVideos :many
 SELECT video_id, video_category_name, code, name, url, created_at
 FROM videos
-ORDER BY video_category_name LIMIT $1
-OFFSET $2
+ORDER BY
+    CASE WHEN $1::text = 'video_id' AND $2::text = 'asc' THEN video_id END ASC NULLS LAST,
+    CASE WHEN $1::text = 'video_id' AND $2::text = 'desc' THEN video_id END DESC NULLS LAST,
+    CASE WHEN $1::text = 'video_category_name' AND $2::text = 'asc' THEN video_category_name END ASC NULLS LAST,
+    CASE WHEN $1::text = 'video_category_name' AND $2::text = 'desc' THEN video_category_name END DESC NULLS LAST,
+    CASE WHEN $1::text = 'created_at' AND $2::text = 'asc' THEN created_at END ASC NULLS LAST,
+    CASE WHEN $1::text = 'created_at' AND $2::text = 'desc' THEN created_at END DESC NULLS LAST
+LIMIT $3
+OFFSET $4
 `
 
 type ListVideosParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	OrderBy     string `json:"order_by"`
+	OrderDir    string `json:"order_dir"`
+	LimitCount  int32  `json:"limit_count"`
+	OffsetCount int32  `json:"offset_count"`
 }
 
 func (q *Queries) ListVideos(ctx context.Context, arg ListVideosParams) ([]Video, error) {
-	rows, err := q.db.Query(ctx, listVideos, arg.Limit, arg.Offset)
+	rows, err := q.db.Query(ctx, listVideos, arg.OrderBy, arg.OrderDir, arg.LimitCount, arg.OffsetCount)
 	if err != nil {
 		return nil, err
 	}
