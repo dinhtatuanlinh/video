@@ -31,7 +31,7 @@ func (server *Server) setupRouter() {
 	// CORS middleware
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"}, // or restrict to specific domains
-		AllowMethods:     []string{"GET"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,

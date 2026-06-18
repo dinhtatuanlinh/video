@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	db "github.com/dinhtatuanlinh/video/db/sqlc"
+	"github.com/dinhtatuanlinh/video/internal/constant"
 	internalError "github.com/dinhtatuanlinh/video/internal/error"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc/codes"
@@ -24,8 +25,9 @@ func (u *UseCaseVideo) DeleteVideos(ctx context.Context, req *DeleteVideosModel)
 		}
 		return internalError.NewAppError("internal error", http.StatusInternalServerError, codes.Internal, err)
 	}
+	currentCategoryName := video.VideoCategoryName
 	for {
-		category, err := u.store.GetCategory(ctx, video.VideoCategoryName)
+		category, err := u.store.GetCategory(ctx, currentCategoryName)
 		if err != nil {
 			if errors.Is(err, db.ErrRecordNotFound) {
 				return internalError.NewAppError("video not found", http.StatusBadRequest, codes.NotFound, err)
@@ -36,8 +38,9 @@ func (u *UseCaseVideo) DeleteVideos(ctx context.Context, req *DeleteVideosModel)
 		if category.CategoryParentName == "" {
 			break
 		}
+		currentCategoryName = category.CategoryParentName
 	}
-	outputDir := u.config.VideoPath
+	outputDir := constant.Drive + "\\setup\\Videos\\"
 	videoFolder = videoFolder + video.Code
 	err = os.RemoveAll(outputDir + videoFolder)
 	if err != nil {

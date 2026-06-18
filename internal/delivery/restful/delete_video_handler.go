@@ -14,7 +14,7 @@ type DeleteVideoRequest struct {
 }
 
 func (s *Server) DeleteVideoHandler(ctx *gin.Context) {
-	log.Info().Msg("CreateVideoHandler called")
+	log.Info().Msg("DeleteVideoHandler called")
 	var req DeleteVideoRequest
 	if err := ctx.ShouldBindUri(&req); err != nil {
 		log.Error().Err(err).Msg("Failed to bind JSON body")
